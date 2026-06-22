@@ -802,12 +802,15 @@ public class InquiryTaskHelper {
         String ameyoDialerQueueEmail = CommonUtility.getAppSetting('Ameyo_Dialer_Queue_Email').Text_Value__c;
 
         for (Inquiry__c inq : mapOfInqIdTodispostionActivityOutcomeStopCalling.keySet()) {
+            String disposition = mapOfInqIdTodispostionActivityOutcomeStopCalling.get(inq);
             String batchName = inq.Ameyo_Campaign_Id__c + ' ' + String.valueOf(System.now());
             dialerDataList.add(Genesys_ParseCSVToDeleteInquiry.returnTeleSalesDialerRecord(inq, batchName, ameyoDialerQueueEmail, mapOfameyoCampaignIds));
             Telesales_Dialer_Data_PE__e pe = new Telesales_Dialer_Data_PE__e();
             pe.Batch_Name__c           = batchName;
             pe.Total_No_Of_Records__c  = '1';
-            pe.Dataload_Idetifier__c   = 'Stop Calling Inquiry';
+            pe.Dataload_Idetifier__c   = (disposition != null && disposition.equalsIgnoreCase('schedule.callback'))
+                                         ? 'schedule.callback'
+                                         : 'Stop Calling Inquiry';
             stopCallingPEList.add(pe);
         }
         if (!dialerDataList.isEmpty())    insert dialerDataList;
