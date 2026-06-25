@@ -460,22 +460,26 @@ public class InquiryTaskHelper {
         return result;
     }
 
-    /** Fire WA not-reachable messages for qualifying inquiries. */
+    /** Fire WA not-reachable messages for qualifying inquiries — once per day only. */
     private static void fireUnreachableWhatsapp(Map<Id, Inquiry__c> mpInquiries2Update, Boolean isChanged) {
         if (!isChanged) return;
         List<String> whatsAppTriggerCounter = csvLabel(Label.Inquiry_UnReachable_Whatsapp_Counter);
         ID ameyoDialerQueueId = [SELECT Id FROM Group WHERE Type = 'Queue' AND DeveloperName = 'Ameyo_Dialer_Queue'].Id;
         Set<Id> unReachableInquiryIds = new Set<Id>();
         for (Inquiry__c inq : [
-            SELECT Id, Telesales_Activity_Counter__c, OwnerId, Call_Status__c, WhatsappConsent__c
+            SELECT Id, Telesales_Activity_Counter__c, OwnerId, Call_Status__c, WhatsappConsent__c,
+                   (SELECT Id FROM Tasks WHERE CreatedDate = TODAY ORDER BY CreatedDate ASC LIMIT 2)
             FROM   Inquiry__c
             WHERE  Id IN :mpInquiries2Update.values() AND Inquiry_Source__c != 'Agent Referral'
         ]) {
             Decimal cnt = inq.Telesales_Activity_Counter__c;
+            // Tasks.size() == 1 means this is the first call today → send WA notification
+            // Tasks.size() > 1 means already called today → notification already sent, skip
             if (cnt >= 1 && whatsAppTriggerCounter.contains(String.valueOf(cnt))
                 && inq.OwnerId == ameyoDialerQueueId
                 && inq.Call_Status__c == 'Attempted'
-                && inq.WhatsappConsent__c != 'Whatsapp/Unsubscribe') {
+                && inq.WhatsappConsent__c != 'Whatsapp/Unsubscribe'
+                && inq.Tasks.size() == 1) {
                 unReachableInquiryIds.add(inq.Id);
             }
         }
