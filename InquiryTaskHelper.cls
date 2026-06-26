@@ -1,9 +1,9 @@
 /*
- * @Author      : Venkateswarlu
- * @CreatedDate : Feb 2024
- * @Name        : InquiryTaskHelper
- * @Description : Task Operations
- */
+* @Author      : Venkateswarlu
+* @CreatedDate : Feb 2024
+* @Name        : InquiryTaskHelper
+* @Description : Task Operations
+*/
 public class InquiryTaskHelper {
 
     // ── Static state ──────────────────────────────────────────────────────────
@@ -453,7 +453,7 @@ public class InquiryTaskHelper {
             ac.Count__c            = Integer.valueOf(a.get('countval'));
             ac.Inquiry__c          = String.valueOf(a.get('inq'));
             ac.Inquiry_Owner__c    = String.valueOf(a.get('own'));
-            ac.Unique_Key__c       = ac.Inquiry__c + ac.Inquiry_Owner__c + 'By Owner';
+            ac.Unique_Key__c       = String.valueOf(ac.Inquiry__c) + String.valueOf(ac.Inquiry_Owner__c) + 'By Owner';
             ac.type_of_counter__c  = 'By Owner';
             result.add(ac);
         }
@@ -473,8 +473,8 @@ public class InquiryTaskHelper {
             WHERE  Id IN :mpInquiries2Update.values() AND Inquiry_Source__c != 'Agent Referral'
         ]) {
             Decimal cnt = inq.Telesales_Activity_Counter__c;
-            // Tasks.size() == 1 means this is the first call today → send WA notification
-            // Tasks.size() > 1 means already called today → notification already sent, skip
+            // Tasks.size() == 1 → first call of the day → send WA
+            // Tasks.size() > 1 → already called today → skip to avoid duplicate WA
             if (cnt >= 1 && whatsAppTriggerCounter.contains(String.valueOf(cnt))
                 && inq.OwnerId == ameyoDialerQueueId
                 && inq.Call_Status__c == 'Attempted'
@@ -508,11 +508,11 @@ public class InquiryTaskHelper {
 
         Set<Id> inquiryIds = ctx.inquiryIds;
 
-        List<String> roboConvertStatuses    = csvLabel(Label.Robo_Call_Inquiry_Status);
-        List<String> nurturingStatuses      = csvLabel(Label.Robo_call_Nurturing_queue_statuses);
-        List<String> notALeadOutcomes       = csvLabel(Label.Robo_Call_Not_a_Lead_Activity_Outcome_List);
-        List<String> damacQueueStatuses     = csvLabel(Label.Inquiry_Damac_Queue_IQ_Status);
-        List<String> unreachableSubTypes    = csvLabel(Label.Inquiry_Unreachable_Sub_Disposition_Type);
+        List<String> roboConvertStatuses = csvLabel(Label.Robo_Call_Inquiry_Status);
+        List<String> nurturingStatuses   = csvLabel(Label.Robo_call_Nurturing_queue_statuses);
+        List<String> notALeadOutcomes    = csvLabel(Label.Robo_Call_Not_a_Lead_Activity_Outcome_List);
+        List<String> damacQueueStatuses  = csvLabel(Label.Inquiry_Damac_Queue_IQ_Status);
+        List<String> unreachableSubTypes = csvLabel(Label.Inquiry_Unreachable_Sub_Disposition_Type);
 
         for (Inquiry__c inq : Database.query(query)) {
             ctx.mapOfInquiry.put(inq.Id, inq);
@@ -693,7 +693,7 @@ public class InquiryTaskHelper {
             }
 
             // Activity counters on inquiry
-            if (inq.Activity_Counter__c           != (activeEvents + activeTasks + completedEvents + completedTasks)
+            if (inq.Activity_Counter__c               != (activeEvents + activeTasks + completedEvents + completedTasks)
                 || inq.Completed_Activities_Counter__c != (completedEvents + completedTasks)
                 || inq.All_Activities_Counter__c       != (inq.Events.size() + inq.Tasks.size())) {
                 upd.Completed_Activities_Counter__c = completedEvents + completedTasks;
@@ -801,20 +801,20 @@ public class InquiryTaskHelper {
     // =========================================================================
 
     public static void createGenesysStopCallingPlatEvent(Map<Inquiry__c, String> mapOfInqIdTodispostionActivityOutcomeStopCalling) {
-        List<Telesales_Dialer_Push__c>    dialerDataList      = new List<Telesales_Dialer_Push__c>();
-        List<Telesales_Dialer_Data_PE__e> stopCallingPEList   = new List<Telesales_Dialer_Data_PE__e>();
+        List<Telesales_Dialer_Push__c>    dialerDataList    = new List<Telesales_Dialer_Push__c>();
+        List<Telesales_Dialer_Data_PE__e> stopCallingPEList = new List<Telesales_Dialer_Data_PE__e>();
         String ameyoDialerQueueEmail = CommonUtility.getAppSetting('Ameyo_Dialer_Queue_Email').Text_Value__c;
 
         for (Inquiry__c inq : mapOfInqIdTodispostionActivityOutcomeStopCalling.keySet()) {
-            String disposition = mapOfInqIdTodispostionActivityOutcomeStopCalling.get(inq);
-            String batchName = inq.Ameyo_Campaign_Id__c + ' ' + String.valueOf(System.now());
-            dialerDataList.add(Genesys_ParseCSVToDeleteInquiry.returnTeleSalesDialerRecord(inq, batchName, ameyoDialerQueueEmail, mapOfameyoCampaignIds));
+            String disposition  = mapOfInqIdTodispostionActivityOutcomeStopCalling.get(inq);
+            String dataloadIden = (disposition != null && disposition.equalsIgnoreCase('schedule.callback'))
+                                  ? 'schedule.callback' : 'Stop Calling Inquiry';
+            String batchName    = inq.Ameyo_Campaign_Id__c + ' ' + String.valueOf(System.now());
+            dialerDataList.add(Genesys_ParseCSVToDeleteInquiry.returnTeleSalesDialerRecord(inq, batchName, ameyoDialerQueueEmail, mapOfameyoCampaignIds, dataloadIden));
             Telesales_Dialer_Data_PE__e pe = new Telesales_Dialer_Data_PE__e();
-            pe.Batch_Name__c           = batchName;
-            pe.Total_No_Of_Records__c  = '1';
-            pe.Dataload_Idetifier__c   = (disposition != null && disposition.equalsIgnoreCase('schedule.callback'))
-                                         ? 'schedule.callback'
-                                         : 'Stop Calling Inquiry';
+            pe.Batch_Name__c          = batchName;
+            pe.Total_No_Of_Records__c = '1';
+            pe.Dataload_Idetifier__c  = dataloadIden;
             stopCallingPEList.add(pe);
         }
         if (!dialerDataList.isEmpty())    insert dialerDataList;
