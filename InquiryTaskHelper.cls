@@ -500,7 +500,7 @@ public class InquiryTaskHelper {
         String query = Genesys_InquiryHelper.inquiryQuery();
         query += ' , (SELECT Id, Status__c FROM Events ORDER BY Status__c ASC),';
         query += ' (SELECT Id, Activity_Outcome__c, Subject, Dialer_Disposition__c, Type, CallType,';
-        query += '  Event_type__c, whatId, CreatedDate, Status, OwnerId, Owner.Profile.Name, Sub_Disposition_type__c, Callback_Datetime__c';
+        query += '  Event_type__c, whatId, CreatedDate, Status, OwnerId, Owner.Profile.Name, Sub_Disposition_type__c, Callback_Datetime__c, CallDurationInSeconds';
         query += '  FROM Tasks ORDER BY CreatedDate DESC),';
         query += ' (SELECT Id, OwnerId, Inquiry__c FROM Nexmo_Whats_App_Requests__r),';
         query += ' (SELECT Campaign__c, Inquiry__c FROM Associated_Campaigns__r)';
@@ -610,21 +610,30 @@ public class InquiryTaskHelper {
                 upd.WhatsappConsent__c = 'Whatsapp/Unsubscribe';
             }
 
-            // Inbound hangup → repush to campaign
+            // Inbound hangup → repush to campaign (max 3 qualifying calls per day; only tasks > 5000s count)
             if (!ctx.mapOfInqInboundIqs.isEmpty() && ctx.mapOfInqInboundIqs.containsKey(inq.Id)
                 && inq.OwnerId == label.Ameyo_Dialer_Queue_Id) {
-                createGenesysStopCallingPlatEvent(new Map<Inquiry__c, String>{ inq => 'CALL_HANGUP' });
-                String campaign = upd.Mobile_CountryCode__c == 'United Arab Emirates: 00971'
-                    ? Label.Inquiry_UAE_Fresh_Leads_Salesforce_Campaign_Number : '119';
-                upd.Ameyo_ID_Dataload__c = campaign;
-                upd.Inquiry_Status__c    = 'New';
-                inq.Inquiry_Status__c    = 'New';
-                inq.Ameyo_customer_id__c = null;
-                inq.Ameyo_ID_Dataload__c = campaign;
-                inq.Meeting_type__c      = null;
-                if (inq.Prypco_Inquiry__c) { upd.Ameyo_ID_Dataload__c = '6999'; inq.Ameyo_ID_Dataload__c = '6999'; }
-                ctx.mapOfInqInboundIqsToRepush.put(inq.Id, inq);
-                if (inq.Inquiry_Status__c == 'Do Not Disturb') genesysUtility.clearInquiryFromDNCInGenesys(inq.Id);
+                Integer todayQualifyingCalls = 0;
+                Date today = Date.today();
+                for (Task t : inq.Tasks) {
+                    if (t.CreatedDate != null && t.CreatedDate.date() == today && t.CallDurationInSeconds > 5000) {
+                        todayQualifyingCalls++;
+                    }
+                }
+                if (todayQualifyingCalls < 3) {
+                    createGenesysStopCallingPlatEvent(new Map<Inquiry__c, String>{ inq => 'CALL_HANGUP' });
+                    String campaign = upd.Mobile_CountryCode__c == 'United Arab Emirates: 00971'
+                        ? Label.Inquiry_UAE_Fresh_Leads_Salesforce_Campaign_Number : '119';
+                    upd.Ameyo_ID_Dataload__c = campaign;
+                    upd.Inquiry_Status__c    = 'New';
+                    inq.Inquiry_Status__c    = 'New';
+                    inq.Ameyo_customer_id__c = null;
+                    inq.Ameyo_ID_Dataload__c = campaign;
+                    inq.Meeting_type__c      = null;
+                    if (inq.Prypco_Inquiry__c) { upd.Ameyo_ID_Dataload__c = '6999'; inq.Ameyo_ID_Dataload__c = '6999'; }
+                    ctx.mapOfInqInboundIqsToRepush.put(inq.Id, inq);
+                    if (inq.Inquiry_Status__c == 'Do Not Disturb') genesysUtility.clearInquiryFromDNCInGenesys(inq.Id);
+                }
             }
 
             // Online meeting link
