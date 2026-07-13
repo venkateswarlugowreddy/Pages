@@ -376,8 +376,8 @@ public class InquiryTaskHelper {
                     if (t.Dialer_Disposition__c == 'CONNECTED')   ctx.mapOfInqInboundConnectedIqs.put(t.WhatId, t.WhatId);
                 }
                 /* if (isInsert && t.Event_Type__c == 'Whatsapp/Callback') { // Customer selected Calllback/Whatsapp Callback
-                    if (t.Dialer_Disposition__c == 'Whatsapp/Callback') ctx.mapOfInqInboundIqs.put(t.WhatId, t);
-                }*/
+if (t.Dialer_Disposition__c == 'Whatsapp/Callback') ctx.mapOfInqInboundIqs.put(t.WhatId, t);
+}*/
                 if (isInsert && t.Event_Type__c == 'outbound.auto.dial' && t.Dialer_Disposition__c == 'CONNECTED' && t.Activity_Outcome__c == 'ABANDONED' && t.CallDurationInSeconds > integer.valueOf(label.Inquiry_Abandoned_Call_Duration)) {
                     ctx.mapOfInqOutboundAbandoedIqs.put(t.WhatId, t);
                 }
@@ -449,29 +449,19 @@ public class InquiryTaskHelper {
         return status;
     }
 
-    /**
-     * Build activity-counter upsert list.
-     * Uses a regular SOQL query + in-Apex counting to avoid the 2,000-row
-     * aggregate-query governor limit that fires when GROUP BY produces too many groups.
-     */
+    /** Build activity-counter upsert list. */
     private static List<Activity_counter__c> buildActivityCounters(Set<Id> inquiryIds) {
-        Map<String, Integer>  countMap  = new Map<String, Integer>();
-        Map<String, Id[]>     keyParts  = new Map<String, Id[]>();
-
-        for (Task t : [SELECT WhatId, OwnerId FROM Task WHERE WhatId IN :inquiryIds]) {
-            String key = String.valueOf(t.WhatId) + String.valueOf(t.OwnerId);
-            countMap.put(key, (countMap.containsKey(key) ? countMap.get(key) : 0) + 1);
-            if (!keyParts.containsKey(key)) keyParts.put(key, new Id[]{ t.WhatId, t.OwnerId });
-        }
-
         List<Activity_counter__c> result = new List<Activity_counter__c>();
-        for (String key : countMap.keySet()) {
+        for (AggregateResult a : [
+            SELECT COUNT(Id) countval, WhatId inq, OwnerId own
+            FROM   Task WHERE WhatId IN :inquiryIds GROUP BY WhatId, OwnerId
+        ]) {
             Activity_counter__c ac = new Activity_counter__c();
-            ac.Count__c           = countMap.get(key);
-            ac.Inquiry__c         = keyParts.get(key)[0];
-            ac.Inquiry_Owner__c   = keyParts.get(key)[1];
-            ac.Unique_Key__c      = key + 'By Owner';
-            ac.type_of_counter__c = 'By Owner';
+            ac.Count__c            = Integer.valueOf(a.get('countval'));
+            ac.Inquiry__c          = String.valueOf(a.get('inq'));
+            ac.Inquiry_Owner__c    = String.valueOf(a.get('own'));
+            ac.Unique_Key__c       = String.valueOf(ac.Inquiry__c) + String.valueOf(ac.Inquiry_Owner__c) + 'By Owner';
+            ac.type_of_counter__c  = 'By Owner';
             result.add(ac);
         }
         return result;
@@ -484,7 +474,7 @@ public class InquiryTaskHelper {
         ID ameyoDialerQueueId = [SELECT Id FROM Group WHERE Type = 'Queue' AND DeveloperName = 'Ameyo_Dialer_Queue'].Id;
         Set<Id> unReachableInquiryIds = new Set<Id>();
         for (Inquiry__c inq : [
-            SELECT Id, Telesales_Activity_Counter__c, OwnerId, Call_Status__c, WhatsappConsent__c, Inquiry_Status__c,
+            SELECT Id, Telesales_Activity_Counter__c, OwnerId, Call_Status__c, WhatsappConsent__c,Inquiry_Status__c ,
             (SELECT Id FROM Tasks WHERE CreatedDate = TODAY ORDER BY CreatedDate ASC LIMIT 2)
             FROM   Inquiry__c
             WHERE  Id IN :mpInquiries2Update.values() AND Inquiry_Source__c != 'Agent Referral'
@@ -492,11 +482,14 @@ public class InquiryTaskHelper {
             Decimal cnt = inq.Telesales_Activity_Counter__c;
             // Tasks.size() == 1 → first call of the day → send WA
             // Tasks.size() > 1 → already called today → skip to avoid duplicate WA
-            if (inq.Inquiry_Status__c == 'Unreachable - Not responding'
-                && inq.WhatsappConsent__c != 'Whatsapp/Unsubscribe'
-                && inq.Tasks.size() == 1) {
-                    unReachableInquiryIds.add(inq.Id);
-                }
+            // if (cnt >= 1 && whatsAppTriggerCounter.contains(String.valueOf(cnt))
+            // If(inq.OwnerId == ameyoDialerQueueId
+            // && inq.Call_Status__c == 'Attempted'
+            If(inq.Inquiry_Status__c == 'Unreachable - Not responding'
+               && inq.WhatsappConsent__c != 'Whatsapp/Unsubscribe'
+               && inq.Tasks.size() == 1) {
+                   unReachableInquiryIds.add(inq.Id);
+               }
         }
         if (!unReachableInquiryIds.isEmpty() && Label.RR_LoggedIn_User_Name == 'true') {
             Genesys_UnReachableWhatsappController.initiateNotReachableWAMessages(unReachableInquiryIds);
@@ -593,17 +586,17 @@ public class InquiryTaskHelper {
 
             // New task inserted → check if any existing task has a future schedule.callback
             /*  if (ctx.newTaskInquiryIds.contains(inq.Id)) {
-                    for (Task t : inq.Tasks) {
-                        if (ctx.newTaskIds.contains(t.Id)) continue;
-                        if (t.Activity_Outcome__c != null
-                            && t.Activity_Outcome__c.equalsIgnoreCase('schedule.callback')
-                            && t.Callback_Datetime__c != null
-                            && t.Callback_Datetime__c > DateTime.now()) {
-                            createGenesysStopCallingPlatEvent(new Map<Inquiry__c, String>{ inq => 'schedule.callback' });
-                            break;
-                        }
-                    }
-                }*/
+for (Task t : inq.Tasks) {
+if (ctx.newTaskIds.contains(t.Id)) continue;
+if (t.Activity_Outcome__c != null
+&& t.Activity_Outcome__c.equalsIgnoreCase('schedule.callback')
+&& t.Callback_Datetime__c != null
+&& t.Callback_Datetime__c > DateTime.now()) {
+createGenesysStopCallingPlatEvent(new Map<Inquiry__c, String>{ inq => 'schedule.callback' });
+break;
+}
+}
+}*/
 
             // Counters
             if (upd.Telesales_Activity_Counter__c != telesalesTasks) {
@@ -632,44 +625,47 @@ public class InquiryTaskHelper {
                     String campaign = upd.Mobile_CountryCode__c == 'United Arab Emirates: 00971' ? Label.Inquiry_UAE_Fresh_Leads_Salesforce_Campaign_Number : '119';
                     upd.Ameyo_ID_Dataload__c = campaign;
                     upd.Inquiry_Status__c    = 'New';
+                    //  upd.Call_back_Date_time__c = ctx.mapOfInqInboundIqs.get(upd.Id).Callback_Datetime__c;
                     inq.Inquiry_Status__c    = 'New';
                     inq.Ameyo_customer_id__c = null;
                     inq.Ameyo_ID_Dataload__c = campaign;
                     inq.Meeting_type__c      = null;
+                    //  inq.Call_back_Date_time__c = ctx.mapOfInqInboundIqs.get(upd.Id).Callback_Datetime__c;
                     if (inq.Prypco_Inquiry__c) { upd.Ameyo_ID_Dataload__c = '6999'; inq.Ameyo_ID_Dataload__c = '6999'; }
                     ctx.mapOfInqInboundIqsToRepush.put(inq.Id, inq);
                     if (inq.Inquiry_Status__c == 'Do Not Disturb') genesysUtility.clearInquiryFromDNCInGenesys(inq.Id);
                 }
-
-            // Outbound ABANDONED → repush to campaign (max 3 qualifying calls per day)
+            // Outbound ABANDONED → repush to campaign
             if (!ctx.mapOfInqOutboundAbandoedIqs.isEmpty() && ctx.mapOfInqOutboundAbandoedIqs.containsKey(inq.Id)
                 && inq.OwnerId == label.Ameyo_Dialer_Queue_Id) {
                     Integer todayQualifyingCalls = 0;
-                    Boolean pushToInter = false;
+                    boolean pushToInter = false;
                     Date today = Date.today();
                     for (Task t : inq.Tasks) {
                         if (t.CreatedDate.date() == today && t.Event_Type__c == 'outbound.auto.dial' && t.Dialer_Disposition__c == 'CONNECTED' && t.Activity_Outcome__c == 'ABANDONED' && t.CallDurationInSeconds > integer.valueOf(label.Inquiry_Abandoned_Call_Duration)){
                             todayQualifyingCalls++;
                         }
                     }
-                    if (todayQualifyingCalls <= 3) {
+                    if (!ctx.mapOfInqOutboundAbandoedIqs.isEmpty() && ctx.mapOfInqOutboundAbandoedIqs.containsKey(inq.Id) && todayQualifyingCalls <= 3) {
                         pushToInter = true;
                     }
-                    if (pushToInter) {
+                    if(pushToInter){
                         createGenesysStopCallingPlatEvent(new Map<Inquiry__c, String>{ inq => 'CALL_HANGUP' });
-                        String campaign = upd.Mobile_CountryCode__c == 'United Arab Emirates: 00971' ? '1786' : '616';
+                        String campaign ='119';
+                        campaign = upd.Mobile_CountryCode__c == 'United Arab Emirates: 00971' ? '1786' : '616';
                         upd.Ameyo_ID_Dataload__c = campaign;
                         upd.Inquiry_Status__c    = 'New';
+                        //  upd.Call_back_Date_time__c = ctx.mapOfInqOutboundAbandoedIqs.get(upd.Id).Callback_Datetime__c;
                         inq.Inquiry_Status__c    = 'New';
                         inq.Ameyo_customer_id__c = null;
                         inq.Ameyo_ID_Dataload__c = campaign;
                         inq.Meeting_type__c      = null;
+                        // inq.Call_back_Date_time__c = ctx.mapOfInqOutboundAbandoedIqs.get(upd.Id).Callback_Datetime__c;
                         if (inq.Prypco_Inquiry__c) { upd.Ameyo_ID_Dataload__c = '6999'; inq.Ameyo_ID_Dataload__c = '6999'; }
                         ctx.mapOfInqInboundIqsToRepush.put(inq.Id, inq);
                         if (inq.Inquiry_Status__c == 'Do Not Disturb') genesysUtility.clearInquiryFromDNCInGenesys(inq.Id);
                     }
                 }
-
             // Online meeting link
             if (!ctx.mapOfInqOnlineMeet.isEmpty() && ctx.mapOfInqOnlineMeet.containsKey(inq.Id)) {
                 upd.Online_Meeting_Link__c = ctx.mapOfInqOnlineMeet.get(upd.Id).Description;
@@ -772,7 +768,7 @@ public class InquiryTaskHelper {
 
             if (!inq.Tasks.isEmpty() && inq.Call_Status__c != callStatus) upd.Call_Status__c = callStatus;
 
-            if (ctx.ameyoCallBacks.containsKey(upd.Id)) {
+            if (ctx.ameyoCallBacks.containsKey(upd.Id)){
                 upd.Ameyo_Callback_Datetime__c = ctx.ameyoCallBacks.get(upd.Id);
                 upd.Call_back_Date_time__c = ctx.ameyoCallBacks.get(upd.Id);
             }
@@ -856,11 +852,13 @@ public class InquiryTaskHelper {
             String disposition = mapOfInqIdTodispostionActivityOutcomeStopCalling.get(inq);
             String dataloadIden = (disposition != null && disposition.equalsIgnoreCase('schedule.callback')) ? 'schedule.callback' : 'Stop Calling Inquiry';
             String batchName = inq.Ameyo_Campaign_Id__c + ' ' + String.valueOf(System.now());
-            dialerDataList.add(Genesys_ParseCSVToDeleteInquiry.returnTeleSalesDialerRecord(inq, batchName, ameyoDialerQueueEmail, mapOfameyoCampaignIds, dataloadIden));
+            dialerDataList.add(Genesys_ParseCSVToDeleteInquiry.returnTeleSalesDialerRecord(inq, batchName, ameyoDialerQueueEmail, mapOfameyoCampaignIds,dataloadIden));
             Telesales_Dialer_Data_PE__e pe = new Telesales_Dialer_Data_PE__e();
-            pe.Batch_Name__c          = batchName;
-            pe.Total_No_Of_Records__c = '1';
-            pe.Dataload_Idetifier__c  = dataloadIden;
+            pe.Batch_Name__c           = batchName;
+            pe.Total_No_Of_Records__c  = '1';
+            pe.Dataload_Idetifier__c = (disposition != null && disposition.equalsIgnoreCase('schedule.callback'))
+                ? 'schedule.callback'
+                : 'Stop Calling Inquiry';
             stopCallingPEList.add(pe);
         }
         if (!dialerDataList.isEmpty())    insert dialerDataList;
