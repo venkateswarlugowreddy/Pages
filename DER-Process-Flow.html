@@ -1,0 +1,555 @@
+<title>DER Submission &amp; HOD Discount Authorization — Process Flow</title>
+<style>
+  :root {
+    --ground: #0B2A4A;
+    --ground-2: #123A63;
+    --ground-3: #0E3057;
+    --line: #3E6E96;
+    --line-soft: rgba(143, 197, 234, 0.28);
+    --ink: #EAF4FF;
+    --ink-dim: #A9C6DE;
+    --accent: #6FD6FF;
+    --accent-ink: #05304B;
+    --ok: #4ED9A0;
+    --ok-ink: #04231A;
+    --warn: #F4B740;
+    --warn-ink: #2E1F00;
+    --bad: #FF7A7A;
+    --bad-ink: #360808;
+    --paper-shadow: rgba(0,0,0,0.35);
+  }
+
+  :root[data-theme="light"] {
+    --ground: #F5F1E6;
+    --ground-2: #FFFFFF;
+    --ground-3: #EDE7D6;
+    --line: #B9CBD8;
+    --line-soft: rgba(27, 92, 138, 0.18);
+    --ink: #14314F;
+    --ink-dim: #4C6478;
+    --accent: #1B5C8A;
+    --accent-ink: #FFFFFF;
+    --ok: #1F8F63;
+    --ok-ink: #FFFFFF;
+    --warn: #B8790A;
+    --warn-ink: #FFFFFF;
+    --bad: #C23B3B;
+    --bad-ink: #FFFFFF;
+    --paper-shadow: rgba(20, 49, 79, 0.12);
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --ground: #F5F1E6;
+      --ground-2: #FFFFFF;
+      --ground-3: #EDE7D6;
+      --line: #B9CBD8;
+      --line-soft: rgba(27, 92, 138, 0.18);
+      --ink: #14314F;
+      --ink-dim: #4C6478;
+      --accent: #1B5C8A;
+      --accent-ink: #FFFFFF;
+      --ok: #1F8F63;
+      --ok-ink: #FFFFFF;
+      --warn: #B8790A;
+      --warn-ink: #FFFFFF;
+      --bad: #C23B3B;
+      --bad-ink: #FFFFFF;
+      --paper-shadow: rgba(20, 49, 79, 0.12);
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background:
+      linear-gradient(var(--line-soft) 1px, transparent 1px) 0 0 / 28px 28px,
+      linear-gradient(90deg, var(--line-soft) 1px, transparent 1px) 0 0 / 28px 28px,
+      var(--ground);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: 40px 16px 80px;
+  }
+
+  .display {
+    font-family: Futura, "Century Gothic", "Avenir Next", "Helvetica Neue", Arial, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+  }
+
+  .mono {
+    font-family: "SF Mono", "Cascadia Code", Consolas, "Liberation Mono", monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.01em;
+  }
+
+  .sheet {
+    max-width: 760px;
+    margin: 0 auto;
+    animation: rise 0.5s ease-out both;
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sheet { animation: none; }
+    * { transition: none !important; }
+  }
+
+  /* ---------- title block ---------- */
+  header.titleblock {
+    border: 1.5px solid var(--line);
+    background: var(--ground-2);
+    padding: 22px 24px;
+    margin-bottom: 34px;
+    box-shadow: 0 12px 30px -18px var(--paper-shadow);
+  }
+
+  header.titleblock .eyebrow {
+    font-size: 0.72rem;
+    color: var(--accent);
+    margin: 0 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  header.titleblock .eyebrow::before {
+    content: "";
+    width: 22px;
+    height: 1px;
+    background: var(--accent);
+    display: inline-block;
+  }
+
+  header.titleblock h1 {
+    font-size: clamp(1.35rem, 4vw, 1.85rem);
+    margin: 0 0 6px;
+    text-wrap: balance;
+    line-height: 1.15;
+  }
+
+  header.titleblock .sub {
+    color: var(--ink-dim);
+    font-size: 0.95rem;
+    margin: 0 0 18px;
+    max-width: 60ch;
+  }
+
+  .stampstrip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    font-size: 0.72rem;
+  }
+
+  .stampstrip div {
+    background: var(--ground-2);
+    padding: 8px 12px;
+  }
+
+  .stampstrip .k {
+    display: block;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.62rem;
+    margin-bottom: 3px;
+  }
+  .stampstrip .v { color: var(--ink); }
+
+  /* ---------- legend ---------- */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin: 0 0 30px;
+    padding: 12px 16px;
+    border: 1px dashed var(--line);
+    font-size: 0.78rem;
+    color: var(--ink-dim);
+  }
+  .legend .item { display: flex; align-items: center; gap: 8px; }
+  .legend .swatch { width: 14px; height: 14px; flex: none; }
+  .legend .swatch.proc { border: 1.5px solid var(--line); background: var(--ground-2); }
+  .legend .swatch.dec { border: 1.5px solid var(--accent); background: transparent; transform: rotate(45deg); }
+  .legend .swatch.yes { background: var(--accent); }
+  .legend .swatch.no { background: var(--bad); }
+
+  /* ---------- module group ---------- */
+  .module {
+    position: relative;
+    border: 1px solid var(--line);
+    padding: 34px 22px 26px;
+    margin-bottom: 30px;
+  }
+
+  .module .tab {
+    position: absolute;
+    top: -13px;
+    left: 18px;
+    background: var(--ground);
+    padding: 0 10px;
+    font-size: 0.8rem;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .module .tab .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid var(--accent);
+    font-size: 0.65rem;
+  }
+
+  /* ---------- spine + nodes ---------- */
+  .spine { display: flex; flex-direction: column; align-items: stretch; }
+
+  .connector {
+    align-self: center;
+    width: 1.5px;
+    height: 22px;
+    background: repeating-linear-gradient(var(--line), var(--line) 4px, transparent 4px, transparent 8px);
+    position: relative;
+  }
+  .connector::after {
+    content: "";
+    position: absolute;
+    bottom: -1px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 6px solid var(--line);
+  }
+
+  .node {
+    position: relative;
+    background: var(--ground-2);
+    border: 1.5px solid var(--line);
+    padding: 14px 18px;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+  .node:hover { border-color: var(--accent); transform: translateY(-1px); }
+
+  .node::before, .node::after,
+  .node .tick-br, .node .tick-bl {
+    content: "";
+    position: absolute;
+    width: 9px; height: 9px;
+    border-color: var(--accent);
+  }
+  .node::before { top: -1px; left: -1px; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+  .node::after  { top: -1px; right: -1px; border-top: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+  .node .tick-bl { bottom: -1px; left: -1px; border-bottom: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+  .node .tick-br { bottom: -1px; right: -1px; border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+
+  .node .step {
+    font-size: 0.68rem;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+
+  .node h3 {
+    font-size: 0.98rem;
+    margin: 0 0 6px;
+    letter-spacing: 0.02em;
+  }
+
+  .node p {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--ink-dim);
+    line-height: 1.5;
+  }
+
+  .node .fields {
+    margin-top: 8px;
+    color: var(--accent);
+    word-break: break-word;
+  }
+
+  .node.decision h3::before {
+    content: "";
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border: 1.5px solid var(--accent);
+    transform: rotate(45deg);
+    margin-right: 9px;
+    position: relative;
+    top: -1px;
+  }
+
+  .outcomes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .chip {
+    font-size: 0.74rem;
+    padding: 5px 10px;
+    border: 1px solid var(--line);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chip .dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+  .chip.yes { border-color: var(--accent); color: var(--accent); }
+  .chip.yes .dot { background: var(--accent); }
+  .chip.no { border-color: var(--bad); color: var(--bad); }
+  .chip.no .dot { background: var(--bad); }
+  .chip.no.warn { border-color: var(--warn); color: var(--warn); }
+  .chip.no.warn .dot { background: var(--warn); }
+
+  /* ---------- terminal stamps ---------- */
+  .terminals {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 18px;
+    margin-top: 8px;
+  }
+
+  .stamp {
+    border: 3px solid var(--bad);
+    color: var(--bad);
+    padding: 18px 16px;
+    text-align: center;
+    transform: rotate(-2deg);
+    position: relative;
+  }
+  .stamp.warn { border-color: var(--warn); color: var(--warn); transform: rotate(1.5deg); }
+  .stamp.ok { border-color: var(--ok); color: var(--ok); transform: rotate(-1deg); }
+
+  .stamp .title {
+    font-size: 1.05rem;
+    letter-spacing: 0.12em;
+    margin-bottom: 6px;
+  }
+  .stamp .desc {
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+    font-size: 0.78rem;
+    color: var(--ink-dim);
+  }
+
+  footer.note {
+    margin-top: 34px;
+    font-size: 0.76rem;
+    color: var(--ink-dim);
+    border-top: 1px dashed var(--line);
+    padding-top: 14px;
+  }
+
+  @media (max-width: 480px) {
+    .node { padding: 12px 14px; }
+    .module { padding: 30px 14px 20px; }
+  }
+</style>
+
+<div class="sheet">
+
+  <header class="titleblock">
+    <p class="display eyebrow">Process Flow — Salesforce</p>
+    <h1 class="display">DER Submission &amp; HOD Discount Authorization</h1>
+    <p class="sub">Sequence of hygiene gates and automated authorization matching applied to every Deal Exception Request, from RM submission through to Auto-Approved or MIS Manual Review.</p>
+    <div class="stampstrip mono">
+      <div><span class="k">Demand Ref</span><span class="v">MID OFFICE/2026/38020</span></div>
+      <div><span class="k">Source</span><span class="v">HOD Discount Authorization &amp; DER Sanity Checks BRD, v1.3</span></div>
+      <div><span class="k">Platform</span><span class="v">Salesforce</span></div>
+    </div>
+  </header>
+
+  <div class="legend">
+    <div class="item"><span class="swatch proc"></span> Process step</div>
+    <div class="item"><span class="swatch dec"></span> Decision</div>
+    <div class="item"><span class="swatch yes"></span> Pass — continue</div>
+    <div class="item"><span class="swatch no"></span> Fail — branch to outcome</div>
+  </div>
+
+  <div class="module">
+    <div class="tab display"><span class="num">A</span> DER Submission &amp; Hygiene Checks</div>
+    <div class="spine">
+
+      <div class="node">
+        <i class="tick-bl"></i><i class="tick-br"></i>
+        <div class="step mono">01</div>
+        <h3>RM Raises DER</h3>
+        <p>Relationship Manager creates a DER and selects the inventory unit(s) being transacted.</p>
+      </div>
+
+      <div class="connector"></div>
+
+      <div class="node">
+        <i class="tick-bl"></i><i class="tick-br"></i>
+        <div class="step mono">02</div>
+        <h3>Upload Identity Document</h3>
+        <p>Passport required for all projects. For Iraq projects, the National ID copy is mandatory and the passport becomes optional.</p>
+      </div>
+
+      <div class="connector"></div>
+
+      <div class="node">
+        <i class="tick-bl"></i><i class="tick-br"></i>
+        <div class="step mono">03</div>
+        <h3>OCR Extraction</h3>
+        <p>Document is read automatically and key fields are captured.</p>
+        <p class="fields mono">OCR Passport Number · OCR Passport Name · OCR Nationality</p>
+      </div>
+
+      <div class="connector"></div>
+
+      <div class="node decision">
+        <i class="tick-bl"></i><i class="tick-br"></i>
+        <div class="step mono">04</div>
+        <h3>Document Type Valid?</h3>
+        <p>Confirms the upload is genuinely a passport or, for Iraq projects, a national ID — not merely that a file is attached.</p>
+        <div class="outcomes">
+          <span class="chip yes"><span class="dot"></span>Yes — continue</span>
+          <span class="chip no"><span class="dot"></span>No — Blocked</span>
+        </div>
+      </div>
+
+      <div class="connector"></div>
+
+      <div class="node">
+        <i class="tick-bl"></i><i class="tick-br"></i>
+        <div class="step mono">05</div>
+        <h3>RM Reviews &amp; Amends Captured Info</h3>
+        <p>RM has the option to change the OCR-captured information before submission.</p>
+      </div>
+
+      <div class="connector"></div>
+
+      <div class="node decision">
+        <i class="tick-bl"></i><i class="tick-br"></i>
+        <div class="step mono">06</div>
+        <h3>OCR Info Matches Amended Info?</h3>
+        <p>The OCR-extracted values and the RM's amended values are validated against one another before submission is allowed.</p>
+        <div class="outcomes">
+          <span class="chip yes"><span class="dot"></span>Yes — continue</span>
+          <span class="chip no"><span class="dot"></span>No — Blocked</span>
+        </div>
+      </div>
+
+      <div class="connector"></div>
+
+      <div class="node">
+        <i class="tick-bl"></i><i class="tick-br"></i>
+        <div class="step mono">07</div>
+        <h3>Agency Type Derived</h3>
+        <p>Set automatically from the Agency Account's Record Type. Defaults to "Direct" where the Agency field is blank.</p>
+      </div>
+
+      <div class="connector"></div>
+
+      <div class="node">
+        <i class="tick-bl"></i><i class="tick-br"></i>
+        <div class="step mono">08</div>
+        <h3>RM Makes Selections</h3>
+        <p>Token Exception, Rebate, DLD Waiver, Price Discount, and DP Hold Needed For (15 / 30 / 45 / 60 / 75 / 90 days).</p>
+      </div>
+
+      <div class="connector"></div>
+
+      <div class="node decision">
+        <i class="tick-bl"></i><i class="tick-br"></i>
+        <div class="step mono">09</div>
+        <h3>DP Hold Needed For Selected?</h3>
+        <p>Where a value is selected, the RM enters the corresponding payment-days schedule before proceeding.</p>
+        <div class="outcomes">
+          <span class="chip yes"><span class="dot"></span>Yes — enter schedule, continue</span>
+          <span class="chip yes"><span class="dot"></span>No — continue directly</span>
+        </div>
+      </div>
+
+      <div class="connector"></div>
+
+      <div class="node">
+        <i class="tick-bl"></i><i class="tick-br"></i>
+        <div class="step mono">10</div>
+        <h3>Submit DER</h3>
+        <p>System summarizes RM Selected Info on a unit-wise basis and writes it to the DER's RM Selected Info field.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="module">
+    <div class="tab display"><span class="num">B</span> HOD Discount Authorization Matching</div>
+    <div class="spine">
+
+      <div class="node">
+        <i class="tick-bl"></i><i class="tick-br"></i>
+        <div class="step mono">11</div>
+        <h3>Match Active DER_Authorization_Rule__c</h3>
+        <p>Evaluated against Deal Type, Country, Construction Status, Type of Inventory, Bedroom Type Exclusions, Building Code, and Price Range.</p>
+      </div>
+
+      <div class="connector"></div>
+
+      <div class="node decision">
+        <i class="tick-bl"></i><i class="tick-br"></i>
+        <div class="step mono">12</div>
+        <h3>Rule Matched &amp; Key Unique?</h3>
+        <p>A given Building Code + Bedroom Type key (e.g. DDA#Studio) may be active on only one DER_Authorization__c record at a time.</p>
+        <div class="outcomes">
+          <span class="chip yes"><span class="dot"></span>Yes — continue</span>
+          <span class="chip no warn"><span class="dot"></span>No — Manual Review</span>
+        </div>
+      </div>
+
+      <div class="connector"></div>
+
+      <div class="node decision">
+        <i class="tick-bl"></i><i class="tick-br"></i>
+        <div class="step mono">13</div>
+        <h3>Total Discount Within Max Authority %?</h3>
+        <p>DLD Waiver + Rebate + Price Discount, together with any Token Exception and DP Hold terms, checked against the matched Authorization's Max Authority %.</p>
+        <div class="outcomes">
+          <span class="chip yes"><span class="dot"></span>Yes — Auto-Approved</span>
+          <span class="chip no warn"><span class="dot"></span>No — Manual Review</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="terminals">
+    <div class="stamp">
+      <div class="title display">Blocked</div>
+      <div class="desc">Submission prevented. RM must correct the flagged item before resubmitting.</div>
+    </div>
+    <div class="stamp warn">
+      <div class="title display">Manual Review</div>
+      <div class="desc">Routed to MIS for standard approval, unchanged from the current process.</div>
+    </div>
+    <div class="stamp ok">
+      <div class="title display">Auto-Approved</div>
+      <div class="desc">DER Status = Approved. No MIS review required.</div>
+    </div>
+  </div>
+
+  <footer class="note">
+    Reflects Section 3, "Defining the Process," of the DER Technical Design Document (Demand Ref MID OFFICE/2026/38020). Steps 04, 06, 12, and 13 are the four points at which the process can end without reaching Auto-Approved.
+  </footer>
+
+</div>
